@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>test websocket</title>
+    <style>
+        #box{
+            display: flex;
+            flex-direction: column;
+            width: 100vw;
+            height: 100vh;
+            flex:1;
+            margin: auto;
+        }
+        table {
+            width:100%;
+            height:100%;
+            table-layout: fixed;
+        }
+    </style>
+</head>
+<body style="display:flex;flex-direction: column;width:100vw;height:100vh;margin:0;">
+    <div id="box">
+    </div>
+    <script>
+        function add(e) {
+            let msg = e.data;
+            window.msgs = JSON.parse(msg)
+            console.log(window.msgs)
+            console.log("next you?:"+(window.msgs.You==window.msgs.Next))
+            if(window.msgs.Command=="welcome"){
+                t = makeTable(window.msgs.Board.Board)
+                document.getElementById("box").appendChild(t)
+            }
+            else if(window.msgs.Command=="update"){
+                t = document.getElementsByTagName("table")[0]
+                updateTable(t,window.msgs.Board.Board)
+            }
+        }
+        function sendJSON(obj){
+            conn.send(JSON.stringify(obj))
+        }
+        conn = new WebSocket('ws://'+window.location.host+'/ws')
+        conn.onopen = function(e){
+            conn.onmessage = add
+            sendJSON({
+                command:"findMatch",
+            })
+        }
+
+        function makeTable(table) {
+            HTMLtable = document.createElement("table")
+            for( i in table) {
+                HTMLRow = document.createElement("tr")
+                for(j in table[i]){
+                    HTMLCol = document.createElement("td")
+                    HTMLCol.innerText = i+","+j+","+table[i][j].Value
+                    if(table[i][j].Owner!="")
+                        HTMLCol.style = "background:#f00;"
+                    HTMLRow.appendChild(HTMLCol)
+                }
+                HTMLtable.appendChild(HTMLRow)
+            }
+            return HTMLtable
+        }
+        function updateTable(HTMLtable,table){
+            
+            for( i in table) {
+                for(j in table[i]){
+                    HTMLtable.children[i].children[j].innerText = i+","+j+","+table[i][j].Value
+                    if(table[i][j].Owner!=""){
+                        HTMLtable.children[i].children[j].style = "background:#f00;"
+                    }else{
+                        HTMLtable.children[i].children[j].style = "background:#000;"
+                    }
+                }
+            }
+        }
+
+        function makeMove(from,to,num) {
+            com = {
+                Command:"move",
+                Moves:[
+                    {From:from,To:to,Number:num}
+                ]
+            }
+            sendJSON(com)
+        }
+    </script>
+</body>
+</html>
