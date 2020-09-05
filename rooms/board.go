@@ -1,6 +1,8 @@
 package rooms
 
-import "math"
+import (
+	"math"
+)
 
 /*MoveMessage - represent a piece move
 if from = -1,-1 -> its a newly made piece
@@ -125,9 +127,11 @@ func (b *Board) MakeMoves(player string, moves []MoveMessage) interface{} {
 }
 
 func (b *Board) verifyMove(player string, move MoveMessage) interface{} {
-
+	toCell := b.board[move.To[0]][move.To[1]]
+	if (move.Number <= 0) || (move.Number > 5) {
+		return b.error("invalid number", move)
+	}
 	if move.From[0] == -1 {
-		toCell := b.board[move.To[0]][move.To[1]]
 		if toCell.Owner != player {
 			return b.error("not own", move)
 		}
@@ -143,6 +147,12 @@ func (b *Board) verifyMove(player string, move MoveMessage) interface{} {
 
 	if fromCell.Owner != player {
 		return b.error("not own", move)
+	}
+	if toCell == fromCell {
+		return b.error("same square", move)
+	}
+	if (toCell.Owner == fromCell.Owner) && (toCell.Value != 0) {
+		return b.error("cant attack self", move)
 	}
 	if fromCell.Value != move.Number {
 		return b.error("invalid number", move)
@@ -188,7 +198,8 @@ func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResp
 		fromCell.Value = 0
 	} else {
 		toCell.Owner = fromCell.Owner
-		toCell.Value = fromCell.Value - fromCell.Value
+		toCell.Value = fromCell.Value - toCell.Value
+		fromCell.Value = 0
 	}
 	response.Winner, response.From, response.To = toCell.Owner, fromCell.Value, toCell.Value
 	return response
@@ -204,31 +215,32 @@ func (b *Board) getBoard(uid string) [][]Cell {
 		board[i] = make([]Cell, b.width)
 		copy(board[i], b.board[i])
 	}
-
+	ranges := [][]int{
+		{0, 0},
+		{0, 1},
+		{1, 0},
+		{1, 1},
+		{0, -1},
+		{-1, 0},
+		{-1, -1},
+		{1, -1},
+		{-1, 1},
+	}
 	for i := range board {
 		for j := range board[i] {
-			if board[i][j].Owner == uid {
+			var flag int
+			for _, pairs := range ranges {
+				newi := i + pairs[0]
+				newj := j + pairs[1]
+				if (newi >= 0) && (newi < len(board)) && (newj >= 0) && (newj < len(board)) {
+					if board[newi][newj].Owner == uid {
+						flag = 1
+						break
+					}
+				}
+			}
+			if flag == 1 {
 				continue
-			}
-			if (i - 1) >= 0 {
-				if board[i-1][j].Owner == uid {
-					continue
-				}
-			}
-			if (j - 1) >= 0 {
-				if board[i][j-1].Owner == uid {
-					continue
-				}
-			}
-			if (i + 1) < len(board) {
-				if board[i+1][j].Owner == uid {
-					continue
-				}
-			}
-			if (j + 1) < len(board[0]) {
-				if board[i][j+1].Owner == uid {
-					continue
-				}
 			}
 			board[i][j].Owner = ""
 			board[i][j].Value = -1

@@ -8,34 +8,128 @@
         #box{
             display: flex;
             flex-direction: column;
-            width: 100vw;
-            height: 100vh;
+            width: 90vw;
+            height: 90vh;
             flex:1;
             margin: auto;
         }
         table {
             width:100%;
             height:100%;
-            table-layout: fixed;
+        }
+        td.self{
+            background:#f00;
+        }
+        td.enemy{
+            background:#ff0;
+        }
+        td.noone{
+            background: #fff;
+        }
+        td.unknown{
+            background: #000;
+        }
+        td.highlight{
+            background: #f0f;
+        }
+        #popover{
+            position: absolute;
+            opacity: 0;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            justify-content:space-around;
+            overflow: hidden;
+            transition: all 500ms ease-in-out;
+            width:0;
+            z-index:1000;
+            right:0;
+            top:0;
+            bottom:0;
+            padding: 0.125rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        #popover > div {
+            display: flex;
+            width:100%;
+            height: 100%;
+            border-top:1px solid salmon;
+            border-bottom:1px solid salmon;
+        }
+        #popover > div >b {
+            margin: auto;
         }
     </style>
 </head>
-<body style="display:flex;flex-direction: column;width:100vw;height:100vh;margin:0;">
-    <div id="box">
+<body>
+    <div style="display:flex;flex-direction: column;width:100vw;height:100vh;margin:0;">
+        <h1>Turn?:<span id="showTurn"></span></h1>
+        <div id="box">
+        </div>
     </div>
     <script>
+        var popover = null
+        window.returnVal = null
+        function popoverSetup(){
+            popover = document.createElement("div")
+            popover.addEventListener("click",setOpt)
+            popover.style.width
+            popover.id = "popover"
+            for(i=1;i<=5;i++){
+                num = document.createElement("div")
+                num.innerHTML = "<b>"+i+"</b>"
+                popover.appendChild(num)
+            }
+            closer = document.createElement("div")
+            closer.innerHTML = "<b>X</b>"
+            popover.appendChild(closer)
+            document.body.appendChild(popover)
+        }popoverSetup()
+        
+        function showPopUp(){
+            popover.style.opacity = 1
+            popover.style.width="3rem"
+        }
+        function hidePopUp(){
+            popover.style.opacity = 0
+            popover.style.width="0"
+        }
+        function setOpt(e){
+            target = e.target
+            if(window.returnVal)
+                window.returnVal(target.innerText)
+            hidePopUp()
+        }
+
+        function getOpt(){
+            return new Promise(resolve=>{
+                showPopUp()
+                window.returnVal = resolve;
+            })
+        }
+
+
+
+
+
         function add(e) {
             let msg = e.data;
             window.msgs = JSON.parse(msg)
             console.log(window.msgs)
-            console.log("next you?:"+(window.msgs.You==window.msgs.Next))
             if(window.msgs.Command=="welcome"){
+                window.You = window.msgs.You
                 t = makeTable(window.msgs.Board.Board)
                 document.getElementById("box").appendChild(t)
-            }
-            else if(window.msgs.Command=="update"){
+                document.getElementById("showTurn").innerText = (window.msgs.You==window.msgs.Next)
+            }else if(window.msgs.Command=="update"){
                 t = document.getElementsByTagName("table")[0]
                 updateTable(t,window.msgs.Board.Board)
+                document.getElementById("showTurn").innerText = (window.msgs.You==window.msgs.Next)
+            } else if(window.msgs.Command=="error"){
+                problem = window.msgs.Problem
+                if(window.msgs.Data)
+                    problem +="->"+window.msgs.Data.problem;
+                alert(problem)
             }
         }
         function sendJSON(obj){
@@ -55,9 +149,22 @@
                 HTMLRow = document.createElement("tr")
                 for(j in table[i]){
                     HTMLCol = document.createElement("td")
-                    HTMLCol.innerText = i+","+j+","+table[i][j].Value
-                    if(table[i][j].Owner!="")
-                        HTMLCol.style = "background:#f00;"
+                    HTMLCol.innerText = table[i][j].Value
+                    HTMLCol.id = i+","+j
+                    HTMLCol.dataset["h"] = i
+                    HTMLCol.dataset["w"] = j
+                    HTMLCol.addEventListener("click",(e)=>{
+                        tdClick(e);
+                    })
+                    if(table[i][j].Owner==window.You){
+                        HTMLCol.className = "self"
+                    }else if(table[i][j].Owner!=""){
+                        HTMLCol.className = "enemy"
+                    }else if(table[i][j].Value==-1){
+                        HTMLCol.className = "unknown"
+                    }else{
+                        HTMLCol.className = "noone"
+                    }
                     HTMLRow.appendChild(HTMLCol)
                 }
                 HTMLtable.appendChild(HTMLRow)
@@ -65,14 +172,17 @@
             return HTMLtable
         }
         function updateTable(HTMLtable,table){
-            
             for( i in table) {
                 for(j in table[i]){
-                    HTMLtable.children[i].children[j].innerText = i+","+j+","+table[i][j].Value
-                    if(table[i][j].Owner!=""){
-                        HTMLtable.children[i].children[j].style = "background:#f00;"
+                    HTMLtable.children[i].children[j].innerText = table[i][j].Value
+                    if(table[i][j].Owner==window.You){
+                        HTMLtable.children[i].children[j].className = "self"
+                    }else if(table[i][j].Owner!=""){
+                        HTMLtable.children[i].children[j].className = "enemy"
+                    }else if(table[i][j].Value==-1){
+                        HTMLtable.children[i].children[j].className = "unknown"
                     }else{
-                        HTMLtable.children[i].children[j].style = "background:#000;"
+                        HTMLtable.children[i].children[j].className = "noone"
                     }
                 }
             }
@@ -86,6 +196,47 @@
                 ]
             }
             sendJSON(com)
+        }
+
+        var from=null,fromVal=null;
+        async function tdClick(e){
+            let target = e.target
+            let val = Number(e.target.innerText)
+            let h = Number(target.dataset['h'])
+            let w = Number(target.dataset['w'])
+            if((!from)&&(val<1)){
+                val = await getOpt()
+                if(val=="X")
+                    return
+                val = Number(val)
+                if((val<=0)||(val>5)){
+                    alert("invalid num")
+                    return
+                }
+                    
+                makeMove([-1,-1],[h,w],val)
+            }else if(!from){
+                from = [h,w]
+                fromVal = val
+                highlight(h,w)
+            }else if((from[0]==h)&&(from[1]==w)){
+                unhighlight(h,w)
+                from = null
+                fromVal = null
+            }else{
+                makeMove(from,[h,w],fromVal)
+                unhighlight(from[0],from[1])
+                from = null
+                fromVal = null
+            }
+        }
+        function highlight(h,w){
+            target = document.getElementById(h+","+w)
+            target.classList.add("highlight")
+        }
+        function unhighlight(h,w){
+            target = document.getElementById(h+","+w)
+            target.classList.remove("highlight")
         }
     </script>
 </body>
