@@ -46,5 +46,5 @@ func main() {
 	if port == "" {
 		log.Fatal("$PORT must be set")
 	}
-	app.Listen(port)
+	app.Listen(":" + port)
 }
