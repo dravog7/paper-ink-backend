@@ -72,7 +72,7 @@
         window.returnVal = null
         function popoverSetup(){
             popover = document.createElement("div")
-            popover.addEventListener("click",setOpt)
+            popover.addEventListener("click",setOptE)
             popover.style.width
             popover.id = "popover"
             for(i=1;i<=5;i++){
@@ -94,13 +94,14 @@
             popover.style.opacity = 0
             popover.style.width="0"
         }
-        function setOpt(e){
-            target = e.target
+        function setOptE(e){
+            setOpt(e.target.innerText)
+        }
+        function setOpt(num){
             if(window.returnVal)
-                window.returnVal(target.innerText)
+                window.returnVal(num)
             hidePopUp()
         }
-
         function getOpt(){
             return new Promise(resolve=>{
                 showPopUp()
@@ -126,7 +127,7 @@
                 t = document.getElementsByTagName("table")[0]
                 updateTable(t,window.msgs.Board.Board)
                 document.getElementById("showTurn").innerText = (window.You==window.msgs.Next)
-                document.getElementById("Ink").innerText = window.msgs.Ink
+                document.getElementById("Ink").innerText = window.msgs.Ink||0
                 if(window.msgs.Winner){
                     if(window.msgs.Winner != window.You){
                     alert("you lost!")
@@ -137,7 +138,7 @@
             } else if(window.msgs.Command=="error"){
                 problem = window.msgs.Problem
                 if(window.msgs.Data)
-                    problem +="->"+window.msgs.Data.problem;
+                    problem +="->"+window.msgs.Data.Problem;
                 alert(problem)
             }
         }
@@ -215,6 +216,10 @@
             let h = Number(target.dataset['h'])
             let w = Number(target.dataset['w'])
             if((!from)&&(val<1)){
+                if(!target.classList.contains("self")){
+                    return
+                }
+                setOpt("X")
                 highlight(h,w)
                 val = await getOpt()
                 if(val=="X"){
@@ -232,6 +237,12 @@
                 makeMove([-1,-1],[h,w],val)
                 unhighlight(h,w)
             }else if(!from){
+                if(returnVal){
+                    setOpt("X")
+                }
+                if(!target.classList.contains("self")){
+                    return
+                }
                 from = [h,w]
                 fromVal = val
                 highlight(h,w)

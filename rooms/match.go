@@ -24,7 +24,7 @@ type MatchResponse struct {
 	You     string
 	Next    string
 	Winner  string `json:",omitempty"`
-	Ink     int    `json:",omitempty"`
+	Ink     int
 }
 
 //NewMatchMessage - json parse a MatchMessage
