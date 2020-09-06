@@ -2,6 +2,7 @@ package rooms
 
 import (
 	"math"
+	"sync"
 )
 
 /*MoveMessage - represent a piece move
@@ -44,15 +45,18 @@ type FightResponse struct {
 type Cell struct {
 	Owner string
 	Value int
+	Used  bool `json:"-"`
 }
 
 //Board - Represent the board of the match
 type Board struct {
 	board     [][]Cell
+	boardLock sync.Mutex
 	height    int
 	width     int
 	players   []string
 	current   int
+	playerInk map[string]int
 	moveCache map[string][]*FightResponse
 }
 
@@ -81,14 +85,16 @@ func (b *Board) GetCurrent() string {
 func (b *Board) start() {
 	startings := [][]int{
 		{0, 0},
+		{b.height - 1, b.width - 1},
 		{b.height - 1, 0},
 		{0, b.width - 1},
-		{b.height - 1, b.width - 1},
 	}
+	b.playerInk = make(map[string]int)
 	for i, player := range b.players {
 		h, w := startings[i][0], startings[i][1]
 		cell := &b.board[h][w]
 		cell.Owner = player
+		b.playerInk[player] = 5
 	}
 }
 
@@ -98,11 +104,13 @@ func (b *Board) error(str string, data interface{}) *ErrorResponse {
 
 //MakeMoves - make a set of moves by a player
 func (b *Board) MakeMoves(player string, moves []MoveMessage) interface{} {
+	b.boardLock.Lock()
+	defer b.boardLock.Unlock()
 	if !b.IsCurrent(player) {
 		return b.error("not current", nil)
 	}
 	for _, move := range moves {
-		err := b.verifyMove(player, move)
+		err := b.VerifyMove(player, move)
 		if err != nil {
 			return b.error("invalid move", err)
 		}
@@ -122,11 +130,13 @@ func (b *Board) MakeMoves(player string, moves []MoveMessage) interface{} {
 		}
 
 	}
+	b.resetUsed(moves)
 	b.setNext()
 	return nil
 }
 
-func (b *Board) verifyMove(player string, move MoveMessage) interface{} {
+//VerifyMove - verify if a move is valid or not
+func (b *Board) VerifyMove(player string, move MoveMessage) interface{} {
 	toCell := b.board[move.To[0]][move.To[1]]
 	if (move.Number <= 0) || (move.Number > 5) {
 		return b.error("invalid number", move)
@@ -137,6 +147,9 @@ func (b *Board) verifyMove(player string, move MoveMessage) interface{} {
 		}
 		if toCell.Value >= 1 {
 			return b.error("already filled", move)
+		}
+		if move.Number > b.playerInk[player] {
+			return b.error("not enough ink", move)
 		}
 		return nil
 	}
@@ -160,6 +173,9 @@ func (b *Board) verifyMove(player string, move MoveMessage) interface{} {
 	if (diffh > 1) || (diffw > 1) {
 		return b.error("invalid distance", move)
 	}
+	if fromCell.Used {
+		return b.error("already move this unit", move)
+	}
 	return nil
 }
 
@@ -168,12 +184,15 @@ func (b *Board) makeMove(player string, move MoveMessage) *FightResponse {
 	if move.From[0] == -1 {
 		//new unit
 		toCell.Value = move.Number
+		b.playerInk[player] -= move.Number
+		toCell.Used = true
 		return nil
 	}
 	fromCell := &b.board[move.From[0]][move.From[1]]
 	if toCell.Value < 1 {
 		toCell.Value, toCell.Owner = fromCell.Value, fromCell.Owner
 		fromCell.Value = 0
+		toCell.Used = true
 		return nil
 	}
 	return b.fight(move, fromCell, toCell)
@@ -190,6 +209,7 @@ func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResp
 	if ((fromCell.Value == 1) && (toCell.Value == 5)) || ((fromCell.Value == 2) && (toCell.Value == 4)) {
 		toCell.Owner = fromCell.Owner
 		toCell.Value = fromCell.Value
+		toCell.Used = true
 		fromCell.Value = 0
 	} else if ((toCell.Value == 1) && (fromCell.Value == 5)) || ((toCell.Value == 2) && (fromCell.Value == 4)) {
 		fromCell.Value = 0
@@ -199,6 +219,7 @@ func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResp
 	} else {
 		toCell.Owner = fromCell.Owner
 		toCell.Value = fromCell.Value - toCell.Value
+		toCell.Used = true
 		fromCell.Value = 0
 	}
 	response.Winner, response.From, response.To = toCell.Owner, fromCell.Value, toCell.Value
@@ -207,9 +228,15 @@ func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResp
 
 func (b *Board) setNext() {
 	b.current = (b.current + 1) % len(b.players)
+	if b.current == 0 {
+		for k := range b.playerInk {
+			b.playerInk[k] += 5
+		}
+	}
 }
 
-func (b *Board) getBoard(uid string) [][]Cell {
+//GetBoard - get the board of player uid
+func (b *Board) GetBoard(uid string) [][]Cell {
 	board := make([][]Cell, b.height)
 	for i := range b.board {
 		board[i] = make([]Cell, b.width)
@@ -249,7 +276,42 @@ func (b *Board) getBoard(uid string) [][]Cell {
 	return board
 }
 
+//GetFights - get fights for player uid
+func (b *Board) GetFights(uid string) []*FightResponse {
+	return b.moveCache[uid]
+}
+
+//GetInk - get ramaining ink of player uid
+func (b *Board) GetInk(uid string) int {
+	return b.playerInk[uid]
+}
+
 //ResetCache - removes all  entries in cache after response to all
 func (b *Board) ResetCache() {
 	b.moveCache = make(map[string][]*FightResponse)
+}
+
+func (b *Board) resetUsed(moves []MoveMessage) {
+	for _, move := range moves {
+		toCell := &b.board[move.To[0]][move.To[1]]
+		toCell.Used = false
+	}
+}
+
+//GetWinner - check if game is finished and return winner
+func (b *Board) GetWinner() string {
+	players := make(map[string]bool)
+	var winner string
+	for _, row := range b.board {
+		for _, cell := range row {
+			if cell.Owner != "" {
+				players[cell.Owner] = true
+				winner = cell.Owner
+			}
+		}
+	}
+	if len(players) > 1 {
+		return ""
+	}
+	return winner
 }

@@ -63,7 +63,7 @@
 </head>
 <body>
     <div style="display:flex;flex-direction: column;width:100vw;height:100vh;margin:0;">
-        <h1>Turn?:<span id="showTurn"></span></h1>
+        <h1>ink:<span id="Ink"></span>,Turn?:<span id="showTurn"></span></h1>
         <div id="box">
         </div>
     </div>
@@ -120,11 +120,20 @@
                 window.You = window.msgs.You
                 t = makeTable(window.msgs.Board.Board)
                 document.getElementById("box").appendChild(t)
-                document.getElementById("showTurn").innerText = (window.msgs.You==window.msgs.Next)
+                document.getElementById("showTurn").innerText = (window.You==window.msgs.Next)
+                document.getElementById("Ink").innerText = window.msgs.Ink
             }else if(window.msgs.Command=="update"){
                 t = document.getElementsByTagName("table")[0]
                 updateTable(t,window.msgs.Board.Board)
-                document.getElementById("showTurn").innerText = (window.msgs.You==window.msgs.Next)
+                document.getElementById("showTurn").innerText = (window.You==window.msgs.Next)
+                document.getElementById("Ink").innerText = window.msgs.Ink
+                if(window.msgs.Winner){
+                    if(window.msgs.Winner != window.You){
+                    alert("you lost!")
+                    }else{
+                        alert("you won!")
+                    }
+                }
             } else if(window.msgs.Command=="error"){
                 problem = window.msgs.Problem
                 if(window.msgs.Data)
@@ -205,16 +214,22 @@
             let h = Number(target.dataset['h'])
             let w = Number(target.dataset['w'])
             if((!from)&&(val<1)){
+                highlight(h,w)
                 val = await getOpt()
-                if(val=="X")
+                if(val=="X"){
+                    unhighlight(h,w)
                     return
+                }
+                    
                 val = Number(val)
                 if((val<=0)||(val>5)){
                     alert("invalid num")
+                    unhighlight(h,w)
                     return
                 }
                     
                 makeMove([-1,-1],[h,w],val)
+                unhighlight(h,w)
             }else if(!from){
                 from = [h,w]
                 fromVal = val

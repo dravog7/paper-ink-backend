@@ -23,6 +23,8 @@ type MatchResponse struct {
 	Board   *BoardResponse `json:",omitempty"`
 	You     string
 	Next    string
+	Winner  string `json:",omitempty"`
+	Ink     int    `json:",omitempty"`
 }
 
 //NewMatchMessage - json parse a MatchMessage
@@ -104,21 +106,27 @@ func (m *Match) process(c connection.Connection, msg MatchMessage) {
 			m.sendJSON(c, err)
 			return
 		}
+		winner := m.game.GetWinner()
 		for k, v := range m.players {
-			Bres := &BoardResponse{
+			boardResp := &BoardResponse{
 				Command: "update",
-				Board:   m.game.getBoard(k),
-				Fight:   m.game.moveCache[k],
+				Board:   m.game.GetBoard(k),
+				Fight:   m.game.GetFights(k),
 			}
-			res := MatchResponse{
+			resp := MatchResponse{
 				Command: "update",
 				You:     k,
 				Next:    m.game.GetCurrent(),
-				Board:   Bres,
+				Board:   boardResp,
+				Winner:  winner,
+				Ink:     m.game.GetInk(k),
 			}
-			m.sendJSON(v, res)
+			m.sendJSON(v, resp)
 		}
-		defer m.game.ResetCache()
+		if winner != "" {
+			m.finishGame()
+		}
+		m.game.ResetCache()
 	}
 }
 
@@ -134,13 +142,24 @@ func (m *Match) welcome() {
 	}
 	for k, v := range m.players {
 		response.You = k
+		response.Ink = m.game.GetInk(k)
 		response.Board = &BoardResponse{
 			Command: "start",
-			Board:   m.game.getBoard(k),
+			Board:   m.game.GetBoard(k),
 		}
 		m.sendJSON(v, response)
 	}
 	log.Printf("start match:%v\n", names)
+}
+
+func (m *Match) finishGame() {
+	for k, v := range m.players {
+		m.sendJSON(v, MatchResponse{
+			Command: "finish",
+		})
+		m.exit <- k
+		m.remove(v)
+	}
 }
 
 //NewMatch - Make a New Match Room
