@@ -1,1 +1,1 @@
-web:./bin/paper-ink-backend
+web: bin/paper-ink-backend

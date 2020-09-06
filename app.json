@@ -1,0 +1,11 @@
+{
+  "name": "paper&ink",
+  "description": "Paper-Ink-Backend",
+  "keywords": [
+    "getting-started",
+    "go",
+    "sample",
+    "example"
+  ],
+  "repository": "https://github.com/dravog7/paper-ink-backend"
+}
