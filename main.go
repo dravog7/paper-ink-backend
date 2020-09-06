@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/dravog7/GameBox/connection"
 	"github.com/dravog7/GameBox/room"
@@ -39,5 +41,10 @@ func main() {
 		fmt.Println("in factory")
 		return params
 	}))
-	app.Listen(80)
+	port := os.Getenv("PORT")
+
+	if port == "" {
+		log.Fatal("$PORT must be set")
+	}
+	app.Listen(port)
 }
