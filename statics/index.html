@@ -144,7 +144,8 @@
         function sendJSON(obj){
             conn.send(JSON.stringify(obj))
         }
-        conn = new WebSocket('ws://'+window.location.host+'/ws')
+        let protocol = (document.location.protocol=="https:")?"wss":"ws"
+        conn = new WebSocket(protocol+'://'+window.location.host+'/ws')
         conn.onopen = function(e){
             conn.onmessage = add
             sendJSON({
