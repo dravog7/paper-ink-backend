@@ -8,6 +8,7 @@ import (
 	"github.com/dravog7/GameBox/connection"
 	"github.com/dravog7/GameBox/room"
 	"github.com/dravog7/paper-ink-backend/rooms"
+	"github.com/gofiber/cors"
 
 	"github.com/gofiber/fiber"
 	"github.com/gofiber/websocket"
@@ -15,7 +16,7 @@ import (
 
 func main() {
 	app := fiber.New()
-
+	app.Use(cors.New())
 	app.Static("/", "./statics")
 	app.Use(func(c *fiber.Ctx) {
 		if websocket.IsWebSocketUpgrade(c) {
@@ -44,7 +45,8 @@ func main() {
 	port := os.Getenv("PORT")
 
 	if port == "" {
-		log.Fatal("$PORT must be set")
+		port = "3000"
 	}
+	log.Printf("Listening on port %s\n\n", port)
 	app.Listen(":" + port)
 }
