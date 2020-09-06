@@ -89,6 +89,18 @@ func (m *Match) remove(conn connection.Connection) {
 		conn.Remove(m.listener[conn.String()])
 		delete(m.players, conn.String())
 		delete(m.listener, conn.String())
+		if (len(m.players) < 2) && (len(m.players) > 0) {
+			var conn connection.Connection
+			for _, v := range m.players {
+				conn = v
+			}
+			m.sendJSON(conn, MatchResponse{
+				Command: "update",
+				You:     conn.String(),
+				Winner:  conn.String(),
+			})
+			m.finishGame()
+		}
 	}
 }
 

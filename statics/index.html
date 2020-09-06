@@ -119,13 +119,15 @@
             console.log(window.msgs)
             if(window.msgs.Command=="welcome"){
                 window.You = window.msgs.You
-                t = makeTable(window.msgs.Board.Board)
+                if((window.msgs.Board)&&(window.msgs.Board.Board))
+                    t = makeTable(window.msgs.Board.Board);
                 document.getElementById("box").appendChild(t)
                 document.getElementById("showTurn").innerText = (window.You==window.msgs.Next)
                 document.getElementById("Ink").innerText = window.msgs.Ink
             }else if(window.msgs.Command=="update"){
                 t = document.getElementsByTagName("table")[0]
-                updateTable(t,window.msgs.Board.Board)
+                if((window.msgs.Board)&&(window.msgs.Board.Board))
+                    updateTable(t,window.msgs.Board.Board);
                 document.getElementById("showTurn").innerText = (window.You==window.msgs.Next)
                 document.getElementById("Ink").innerText = window.msgs.Ink||0
                 if(window.msgs.Winner){
