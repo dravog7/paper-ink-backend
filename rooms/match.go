@@ -25,6 +25,7 @@ type MatchResponse struct {
 	Next    string
 	Winner  string `json:",omitempty"`
 	Ink     int
+	Ping    string
 }
 
 //NewMatchMessage - json parse a MatchMessage
@@ -49,7 +50,7 @@ func (m *Match) Join(conn connection.Connection) error {
 	err := m.add(conn)
 	if err == nil {
 		m.listener[conn.String()] = conn.Listen(func(c connection.Connection, mt string, msg string) {
-			if mt == "close" {
+			if mt == "disconnect" {
 				m.remove(c)
 				return
 			}
@@ -94,7 +95,7 @@ func (m *Match) remove(conn connection.Connection) {
 			for _, v := range m.players {
 				conn = v
 			}
-			m.sendJSON(conn, MatchResponse{
+			conn.SendJSON(&MatchResponse{
 				Command: "update",
 				You:     conn.String(),
 				Winner:  conn.String(),
@@ -104,18 +105,11 @@ func (m *Match) remove(conn connection.Connection) {
 	}
 }
 
-func (m *Match) sendJSON(v connection.Connection, msg interface{}) {
-	message, err := json.Marshal(msg)
-	if err == nil {
-		v.Send(string(message))
-	}
-}
-
 func (m *Match) process(c connection.Connection, msg MatchMessage) {
 	if msg.Command == "move" {
 		err := m.game.MakeMoves(c.String(), msg.Moves)
 		if err != nil {
-			m.sendJSON(c, err)
+			c.SendJSON(err)
 			return
 		}
 		winner := m.game.GetWinner()
@@ -132,8 +126,9 @@ func (m *Match) process(c connection.Connection, msg MatchMessage) {
 				Board:   boardResp,
 				Winner:  winner,
 				Ink:     m.game.GetInk(k),
+				Ping:    v.GetPing().String(),
 			}
-			m.sendJSON(v, resp)
+			v.SendJSON(resp)
 		}
 		if winner != "" {
 			m.finishGame()
@@ -159,15 +154,17 @@ func (m *Match) welcome() {
 			Command: "start",
 			Board:   m.game.GetBoard(k),
 		}
-		m.sendJSON(v, response)
+		response.Ping = v.GetPing().String()
+		v.SendJSON(response)
 	}
 	log.Printf("start match:%v\n", names)
 }
 
 func (m *Match) finishGame() {
 	for k, v := range m.players {
-		m.sendJSON(v, MatchResponse{
+		v.SendJSON(&MatchResponse{
 			Command: "finish",
+			Ping:    v.GetPing().String(),
 		})
 		m.exit <- k
 		m.remove(v)
