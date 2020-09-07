@@ -59,7 +59,7 @@ func (e *Entry) Join(conn connection.Connection) {
 	err := e.add(conn)
 	if err == nil {
 		e.listener[conn.String()] = conn.Listen(func(c connection.Connection, mt string, msg string) {
-			if mt == "close" {
+			if mt == "disconnect" {
 				e.remove(c)
 				return
 			}

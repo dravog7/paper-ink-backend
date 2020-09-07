@@ -49,6 +49,7 @@ func MatchMaking(e *Entry, in chan connection.Connection, out chan connection.Co
 				for _, v := range players {
 					out <- v
 				}
+				delete(matches, finishedGameName)
 			}
 		}
 	}

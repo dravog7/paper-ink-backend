@@ -116,13 +116,23 @@
 
 
 
-
+        function start(){
+            if(confirm("start new match?")){
+                sendJSON({
+                command:"findMatch",
+            })
+            document.getElementById("showTurn").innerText="Waiting to find opponent"
+            }
+            else{
+                conn.close()
+            }
+        }
         function add(e) {
             let msg = e.data;
             window.msgs = JSON.parse(msg)
             console.log(window.msgs)
-            document.getElementById("Ink").innerText = window.msgs.Ink||0
-            ping.innerText = window.msgs.Ping||0
+            document.getElementById("Ink").innerText = window.msgs.Ink||document.getElementById("Ink").innerText
+            ping.innerText = window.msgs.Ping||ping.innerText
             if(window.msgs.Command=="welcome"){
                 window.You = window.msgs.You
                 if((window.msgs.Board)&&(window.msgs.Board.Board))
@@ -141,6 +151,8 @@
                     }else{
                         alert("you won!")
                     }
+                    document.getElementsByTagName("table")[0].remove()
+                    start()
                 }
             } else if(window.msgs.Command=="error"){
                 problem = window.msgs.Problem
@@ -156,9 +168,10 @@
         conn = new WebSocket(protocol+'://'+window.location.host+'/ws')
         conn.onopen = function(e){
             conn.onmessage = add
-            sendJSON({
-                command:"findMatch",
-            })
+            start()
+        }
+        conn.onclose = function(e){
+            document.getElementById("showTurn").innerText="connection Closed!"
         }
 
         function makeTable(table) {

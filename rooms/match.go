@@ -113,21 +113,25 @@ func (m *Match) process(c connection.Connection, msg MatchMessage) {
 			return
 		}
 		winner := m.game.GetWinner()
+		var (
+			resp      *MatchResponse
+			boardResp *BoardResponse
+		)
+		boardResp = &BoardResponse{Command: "update"}
+		resp = &MatchResponse{
+			Command: "update",
+			Next:    m.game.GetCurrent(),
+			Winner:  winner,
+			Board:   boardResp,
+		}
 		for k, v := range m.players {
-			boardResp := &BoardResponse{
-				Command: "update",
-				Board:   m.game.GetBoard(k),
-				Fight:   m.game.GetFights(k),
-			}
-			resp := MatchResponse{
-				Command: "update",
-				You:     k,
-				Next:    m.game.GetCurrent(),
-				Board:   boardResp,
-				Winner:  winner,
-				Ink:     m.game.GetInk(k),
-				Ping:    v.GetPing().String(),
-			}
+			boardResp.Board = m.game.GetBoard(k)
+			boardResp.Fight = m.game.GetFights(k)
+
+			resp.You = k
+			resp.Ink = m.game.GetInk(k)
+			resp.Ping = v.GetPing().String()
+
 			v.SendJSON(resp)
 		}
 		if winner != "" {
@@ -161,12 +165,12 @@ func (m *Match) welcome() {
 }
 
 func (m *Match) finishGame() {
-	for k, v := range m.players {
+	for _, v := range m.players {
 		v.SendJSON(&MatchResponse{
 			Command: "finish",
 			Ping:    v.GetPing().String(),
 		})
-		m.exit <- k
+		m.exit <- m.Name
 		m.remove(v)
 	}
 }
