@@ -207,22 +207,26 @@ func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResp
 		Defender: toCell.Owner,
 	}
 	if ((fromCell.Value == 1) && (toCell.Value == 5)) || ((fromCell.Value == 2) && (toCell.Value == 4)) {
-		toCell.Owner = fromCell.Owner
-		toCell.Value = fromCell.Value
-		toCell.Used = true
-		fromCell.Value = 0
+		toCell.Value = 0
 	} else if ((toCell.Value == 1) && (fromCell.Value == 5)) || ((toCell.Value == 2) && (fromCell.Value == 4)) {
 		fromCell.Value = 0
-	} else if toCell.Value >= fromCell.Value {
+	}
+	if fromCell.Value > toCell.Value {
+		toCell.Value = fromCell.Value - toCell.Value
+		toCell.Owner = fromCell.Owner
+		response.Winner = toCell.Owner
+		toCell.Used = true
+	} else if fromCell.Value < toCell.Value {
 		toCell.Value = toCell.Value - fromCell.Value
 		fromCell.Value = 0
+		response.Winner = toCell.Owner
 	} else {
-		toCell.Owner = fromCell.Owner
-		toCell.Value = fromCell.Value - toCell.Value
-		toCell.Used = true
 		fromCell.Value = 0
+		toCell.Value = 0
+		response.Winner = "tie"
+		fromCell.Used = true
 	}
-	response.Winner, response.From, response.To = toCell.Owner, fromCell.Value, toCell.Value
+	response.From, response.To = fromCell.Value, toCell.Value
 	return response
 }
 

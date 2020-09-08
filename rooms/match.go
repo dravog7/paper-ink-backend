@@ -168,22 +168,22 @@ func (m *Match) finishGame() {
 	for _, v := range m.players {
 		v.SendJSON(&MatchResponse{
 			Command: "finish",
-			Ping:    v.GetPing().String(),
+			Ping:    (v.GetPing() / 2).String(),
 		})
-		m.exit <- m.Name
-		m.remove(v)
+		v.Remove(m.listener[v.String()])
 	}
+	m.exit <- m.Name
 }
 
 //NewMatch - Make a New Match Room
 func NewMatch(exit chan string, c []connection.Connection) *Match {
 	match := &Match{Name: uuid.New().String(), exit: exit}
-	var strings []string
+	var connectionNames []string
 	for _, v := range c {
 		match.Join(v)
-		strings = append(strings, v.String())
+		connectionNames = append(connectionNames, v.String())
 	}
-	match.game = NewBoard(5, 5, strings)
+	match.game = NewBoard(5, 5, connectionNames)
 	match.welcome()
 	return match
 }

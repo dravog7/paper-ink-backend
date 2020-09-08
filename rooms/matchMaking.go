@@ -21,7 +21,7 @@ func MatchMaking(e *Entry, in chan connection.Connection, out chan connection.Co
 		select {
 		case player := <-in:
 			waitListen[player.String()] = player.Listen(func(c connection.Connection, mt string, msg string) {
-				if mt == "close" {
+				if mt == "disconnect" {
 					onClose(c.String())
 					return
 				}
@@ -29,6 +29,7 @@ func MatchMaking(e *Entry, in chan connection.Connection, out chan connection.Co
 			waitSync.Lock()
 			log.Printf("new wait:%v\n", player)
 			waiting[player.String()] = player
+
 			if len(waiting) >= 2 {
 				var arr []connection.Connection
 				for _, conn := range waiting {
@@ -37,11 +38,14 @@ func MatchMaking(e *Entry, in chan connection.Connection, out chan connection.Co
 					}
 					arr = append(arr, conn)
 				}
+
 				match := NewMatch(exit, arr)
 				matches[match.String()] = match
+
 				delete(waiting, arr[0].String())
 				delete(waiting, arr[1].String())
 			}
+
 			waitSync.Unlock()
 		case finishedGameName := <-exit:
 			if instance, ok := matches[finishedGameName]; ok {
