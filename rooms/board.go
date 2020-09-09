@@ -32,13 +32,14 @@ type BoardResponse struct {
 Send only to attacker and defender
 */
 type FightResponse struct {
-	Move     MoveMessage
-	Defence  int
-	Attacker string
-	Defender string
-	Winner   string
-	From     int
-	To       int
+	AttackLocation  [2]int
+	Attack          int
+	DefenceLocation [2]int
+	Defence         int
+	Attacker        string
+	Defender        string
+	Winner          string
+	To              int
 }
 
 //Cell - Represent a single cell
@@ -103,7 +104,7 @@ func (b *Board) error(str string, data interface{}) *ErrorResponse {
 }
 
 //MakeMoves - make a set of moves by a player
-func (b *Board) MakeMoves(player string, moves []MoveMessage) interface{} {
+func (b *Board) MakeMoves(player string, moves []MoveMessage) *ErrorResponse {
 	b.boardLock.Lock()
 	defer b.boardLock.Unlock()
 	if !b.IsCurrent(player) {
@@ -136,7 +137,7 @@ func (b *Board) MakeMoves(player string, moves []MoveMessage) interface{} {
 }
 
 //VerifyMove - verify if a move is valid or not
-func (b *Board) VerifyMove(player string, move MoveMessage) interface{} {
+func (b *Board) VerifyMove(player string, move MoveMessage) *ErrorResponse {
 	toCell := b.board[move.To[0]][move.To[1]]
 	if (move.Number <= 0) || (move.Number > 5) {
 		return b.error("invalid number", move)
@@ -195,17 +196,21 @@ func (b *Board) makeMove(player string, move MoveMessage) *FightResponse {
 		toCell.Used = true
 		return nil
 	}
-	return b.fight(move, fromCell, toCell)
+	response := &FightResponse{
+		AttackLocation:  move.From,
+		Attack:          fromCell.Value,
+		DefenceLocation: move.To,
+		Defence:         toCell.Value,
+		Attacker:        fromCell.Owner,
+		Defender:        toCell.Owner,
+	}
+	response.Winner, response.To = b.fight(fromCell, toCell)
+	return response
 
 }
 
-func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResponse {
-	response := &FightResponse{
-		Move:     move,
-		Defence:  toCell.Value,
-		Attacker: fromCell.Owner,
-		Defender: toCell.Owner,
-	}
+func (b *Board) fight(fromCell *Cell, toCell *Cell) (string, int) {
+	var Winner string
 	if ((fromCell.Value == 1) && (toCell.Value == 5)) || ((fromCell.Value == 2) && (toCell.Value == 4)) {
 		toCell.Value = 0
 	} else if ((toCell.Value == 1) && (fromCell.Value == 5)) || ((toCell.Value == 2) && (fromCell.Value == 4)) {
@@ -214,20 +219,20 @@ func (b *Board) fight(move MoveMessage, fromCell *Cell, toCell *Cell) *FightResp
 	if fromCell.Value > toCell.Value {
 		toCell.Value = fromCell.Value - toCell.Value
 		toCell.Owner = fromCell.Owner
-		response.Winner = toCell.Owner
+		fromCell.Value = 0
+		Winner = toCell.Owner
 		toCell.Used = true
 	} else if fromCell.Value < toCell.Value {
 		toCell.Value = toCell.Value - fromCell.Value
 		fromCell.Value = 0
-		response.Winner = toCell.Owner
+		Winner = toCell.Owner
 	} else {
 		fromCell.Value = 0
 		toCell.Value = 0
-		response.Winner = "tie"
+		Winner = "tie"
 		fromCell.Used = true
 	}
-	response.From, response.To = fromCell.Value, toCell.Value
-	return response
+	return Winner, toCell.Value
 }
 
 func (b *Board) setNext() {
